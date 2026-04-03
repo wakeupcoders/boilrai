@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus — AI Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-void: #050508;
+    --bg-surface: #0c0c14;
+    --bg-panel: #111118;
+    --bg-card: #16161f;
+    --bg-hover: #1c1c28;
+    --border: #1e1e2e;
+    --border-glow: #2a2a45;
+    --accent-cyan: #00d4ff;
+    --accent-violet: #7c3aed;
+    --accent-emerald: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-rose: #f43f5e;
+    --text-primary: #e8e8f0;
+    --text-secondary: #7878a0;
+    --text-muted: #3a3a5c;
+    --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.15);
+    --glow-violet: 0 0 30px rgba(124, 58, 237, 0.2);
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { height: 100%; }
+
+  body {
+    background: var(--bg-void);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── Grid background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Ambient orbs ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+    animation: drift 20s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 600px; height: 600px; background: rgba(124,58,237,0.08); top: -200px; right: -100px; animation-delay: 0s; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(0,212,255,0.06); bottom: -100px; left: -50px; animation-delay: -8s; }
+  .orb-3 { width: 300px; height: 300px; background: rgba(16,185,129,0.05); top: 50%; left: 40%; animation-delay: -4s; }
+
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(40px, -30px) scale(1.1); }
+  }
+
+  /* ── Layout ── */
+  .app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    grid-template-rows: 100vh;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 1px; height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--accent-cyan) 30%, var(--accent-violet) 70%, transparent);
+    opacity: 0.3;
+  }
+
+  .sidebar-header {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    box-shadow: var(--glow-cyan);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .logo-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  }
+
+  .logo-text {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, var(--text-primary), var(--accent-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo-badge {
+    font-size: 9px;
+    color: var(--accent-cyan);
+    font-weight: 500;
+    letter-spacing: 2px;
+    opacity: 0.6;
+    text-transform: uppercase;
+    margin-left: 42px;
+  }
+
+  .model-selector {
+    margin: 16px 20px;
+  }
+
+  .model-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .model-label::before {
+    content: '';
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--accent-emerald);
+    box-shadow: 0 0 6px var(--accent-emerald);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .model-select {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237878a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+  }
+
+  .model-select:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+  }
+
+  .model-select option { background: var(--bg-card); }
+
+  .sidebar-section-title {
+    padding: 16px 20px 8px;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 500;
+  }
+
+  .presets {
+    padding: 0 12px;
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .presets::-webkit-scrollbar { display: none; }
+
+  .preset-item {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+
+  .preset-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--border);
+  }
+
+  .preset-icon {
+    font-size: 14px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .preset-content { flex: 1; min-width: 0; }
+
+  .preset-name {
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .preset-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .server-status {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-emerald);
+    box-shadow: 0 0 8px var(--accent-emerald);
+    animation: pulse-dot 2s ease-in-out infinite;
+    margin-right: 6px;
+  }
+
+  .status-dot.error { background: var(--accent-rose); box-shadow: 0 0 8px var(--accent-rose); }
+
+  .server-url {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── Main ── */
+  .main {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg-void);
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(5,5,8,0.8);
+    backdrop-filter: blur(12px);
+    flex-shrink: 0;
+  }
+
+  .topbar-left {
+    display: flex; align-items: center; gap: 16px;
+  }
+
+  .topbar-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+  }
+
+  .topbar-model-chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--accent-cyan);
+    font-weight: 500;
+  }
+
+  .topbar-right {
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    font-size: 15px;
+  }
+
+  .icon-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-glow);
+    color: var(--text-primary);
+  }
+
+  /* ── Messages ── */
+  .messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 24px;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .messages-container::-webkit-scrollbar { width: 4px; }
+  .messages-container::-webkit-scrollbar-track { background: transparent; }
+  .messages-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 16px;
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    filter: grayscale(0.3);
+    animation: float 4s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .empty-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+  }
+
+  .empty-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    max-width: 320px;
+    line-height: 1.6;
+  }
+
+  .quick-chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  .chip {
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-mono);
+  }
+
+  .chip:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    transform: translateY(-1px);
+  }
+
+  /* ── Message bubbles ── */
+  .message {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.3s ease forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .message.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    position: relative;
+  }
+
+  .avatar.user-avatar {
+    background: linear-gradient(135deg, var(--accent-violet), #a855f7);
+    color: white;
+    font-size: 12px;
+    font-family: var(--font-display);
+  }
+
+  .avatar.ai-avatar {
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-hover));
+    border: 1px solid var(--border-glow);
+    overflow: hidden;
+    font-size: 16px;
+  }
+
+  .avatar.ai-avatar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,212,255,0.1), transparent);
+  }
+
+  .message-content { flex: 1; max-width: 720px; }
+
+  .message.user .message-content { align-items: flex-end; display: flex; flex-direction: column; }
+
+  .message-meta {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .message.user .message-meta { flex-direction: row-reverse; }
+
+  .message-name {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .message-time { opacity: 0.6; }
+
+  .bubble {
+    padding: 14px 18px;
+    border-radius: 14px;
+    line-height: 1.7;
+    font-size: 13.5px;
+    position: relative;
+    word-break: break-word;
+  }
+
+  .bubble.user {
+    background: linear-gradient(135deg, var(--accent-violet), #6d28d9);
+    color: white;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 20px rgba(124,58,237,0.25);
+  }
+
+  .bubble.ai {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .bubble.ai.streaming {
+    border-color: var(--border-glow);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,212,255,0.1);
+  }
+
+  /* Streaming cursor */
+  .cursor {
+    display: inline-block;
+    width: 2px; height: 14px;
+    background: var(--accent-cyan);
+    border-radius: 1px;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 0.7s step-end infinite;
+    box-shadow: 0 0 6px var(--accent-cyan);
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* ── Thinking loader ── */
+  .thinking {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 14px;
+    border-bottom-left-radius: 4px;
+    width: fit-content;
+  }
+
+  .thinking-dots {
+    display: flex; gap: 4px;
+    align-items: center;
+  }
+
+  .thinking-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    animation: thinking-bounce 1.4s ease-in-out infinite;
+  }
+
+  .thinking-dot:nth-child(1) { animation-delay: 0s; }
+  .thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes thinking-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  .thinking-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .thinking-ring {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Token counter */
+  .token-count {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    display: flex; align-items: center; gap: 6px;
+    padding-left: 2px;
+  }
+
+  .token-count span { color: var(--accent-cyan); }
+
+  /* ── Input area ── */
+  .input-area {
+    padding: 16px 24px 20px;
+    background: rgba(5,5,8,0.9);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .input-wrapper {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .input-wrapper:focus-within {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.08), var(--glow-cyan);
+  }
+
+  .input-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .input-wrapper:focus-within::before { opacity: 0.5; }
+
+  .textarea-field {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    line-height: 1.6;
+    padding: 14px 16px 12px;
+    resize: none;
+    min-height: 52px;
+    max-height: 160px;
+    scrollbar-width: none;
+    overflow-y: auto;
+  }
+
+  .textarea-field::-webkit-scrollbar { display: none; }
+  .textarea-field::placeholder { color: var(--text-muted); }
+
+  .input-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px 12px;
+  }
+
+  .input-tools {
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  .tool-btn {
+    width: 28px; height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+
+  .tool-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border);
+    color: var(--text-secondary);
+  }
+
+  .char-count {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .char-count.warning { color: var(--accent-amber); }
+
+  .input-actions {
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .send-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, var(--accent-cyan), #0099bb);
+    border: none;
+    border-radius: 8px;
+    color: #000;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .send-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  }
+
+  .send-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,212,255,0.3);
+  }
+
+  .send-btn:active { transform: translateY(0); }
+
+  .send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .stop-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg-hover);
+    border: 1px solid var(--accent-rose);
+    border-radius: 8px;
+    color: var(--accent-rose);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+    display: none;
+  }
+
+  .stop-btn:hover {
+    background: rgba(244,63,94,0.1);
+    box-shadow: 0 0 12px rgba(244,63,94,0.2);
+  }
+
+  .stop-btn.visible { display: flex; }
+
+  .input-hint {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .input-hint kbd {
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  /* ── Progress bar ── */
+  .stream-progress {
+    height: 2px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+    border-radius: 1px;
+    margin-bottom: -2px;
+  }
+
+  .stream-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+    width: 0%;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 8px rgba(0,212,255,0.5);
+  }
+
+  .stream-progress.active .stream-progress-bar {
+    animation: progress-shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes progress-shimmer {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 90%; }
+  }
+
+  /* ── Toast notifications ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px;
+    color: var(--text-primary);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 100;
+    max-width: 320px;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: var(--accent-rose); }
+  .toast.success { border-color: var(--accent-emerald); }
+
+  /* ── Code blocks in response ── */
+  .bubble code {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent-cyan);
+  }
+
+  .bubble pre {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+    margin: 8px 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .bubble pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-primary);
+    font-size: 12px;
+  }
+
+  /* ── Settings panel ── */
+  .settings-panel {
+    position: absolute;
+    top: 0; right: 0;
+    width: 280px;
+    height: 100%;
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border);
+    z-index: 50;
+    padding: 20px;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .settings-panel.open { transform: translateX(0); }
+
+  .settings-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .close-btn {
+    background: none; border: none; color: var(--text-secondary);
+    cursor: pointer; font-size: 18px; padding: 2px;
+    transition: color 0.15s;
+  }
+
+  .close-btn:hover { color: var(--text-primary); }
+
+  .setting-group { margin-bottom: 20px; }
+
+  .setting-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .setting-input {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 12px;
+    transition: border-color 0.2s;
+  }
+
+  .setting-input:focus { outline: none; border-color: var(--accent-cyan); }
+
+  .range-wrapper {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .range-value {
+    font-size: 12px;
+    color: var(--accent-cyan);
+    min-width: 30px;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    appearance: none;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 6px rgba(0,212,255,0.5);
+    cursor: pointer;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .messages-container { padding: 20px 16px; }
+    .input-area { padding: 12px 16px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">⚡</div>
+        <span class="logo-text">Nexus</span>
+      </div>
+      <div class="logo-badge">AI Terminal v2.0</div>
+    </div>
+
+    <div class="model-selector">
+      <div class="model-label">Active Model</div>
+      <select class="model-select" id="modelSelect">
+        <option value="minimax-m2.7:cloud">minimax-m2.7:cloud</option>
+        <option value="llama3.2:latest">llama3.2:latest</option>
+        <option value="mistral:latest">mistral:latest</option>
+        <option value="gemma2:latest">gemma2:latest</option>
+        <option value="phi4:latest">phi4:latest</option>
+        <option value="qwen2.5:latest">qwen2.5:latest</option>
+        <option value="deepseek-r1:latest">deepseek-r1:latest</option>
+        <option value="codellama:latest">codellama:latest</option>
+      </select>
+    </div>
+
+    <div class="sidebar-section-title">Quick Prompts</div>
+    <div class="presets" id="presets">
+      <div class="preset-item" onclick="usePreset('Write a short story about a time traveler who visits ancient Rome')">
+        <span class="preset-icon">📖</span>
+        <div class="preset-content">
+          <div class="preset-name">Short Story</div>
+          <div class="preset-desc">Creative fiction prompt</div>
+        </div>
+      </div>
+      <div class="preset-item" onclick="usePreset('Explain quantum entanglement in simple terms with a real-world analogy')">
+        <span class="preset-icon">⚛️</span>
+        <div class="preset-content">
+          <div class="preset-name">Explain Quantum Physics</div>
+          <div class="preset-desc">Science made simple</div>
+        </div>
+      </div>
+      <div class="preset-item" onclick="usePreset('Write a Python function to sort a list of dictionaries by multiple keys')">
+        <span class="preset-icon">🐍</span>
+        <div class="preset-content">
+          <div class="preset-name">Python Code</div>
+          <div class="preset-desc">Sorting algorithms</div>
+        </div>
+      </div>
+      <div class="preset-item" onclick="usePreset('Create a 7-day meal plan for someone trying to build muscle, include macros')">
+        <span class="preset-icon">💪</span>
+        <div class="preset-content">
+          <div class="preset-name">Meal Plan</div>
+          <div class="preset-desc">Nutrition & fitness</div>
+        </div>
+      </div>
+      <div class="preset-item" onclick="usePreset('Write a professional email declining a job offer gracefully')">
+        <span class="preset-icon">📧</span>
+        <div class="preset-content">
+          <div class="preset-name">Professional Email</div>
+          <div class="preset-desc">Business writing</div>
+        </div>
+      </div>
+      <div class="preset-item" onclick="usePreset('Analyze the pros and cons of microservices vs monolithic architecture')">
+        <span class="preset-icon">🏗️</span>
+        <div class="preset-content">
+          <div class="preset-name">System Design</div>
+          <div class="preset-desc">Architecture analysis</div>
+        </div>
+      </div>
+      <div class="preset-item" onclick="usePreset('Write a haiku about artificial intelligence becoming self-aware')">
+        <span class="preset-icon">🌸</span>
+        <div class="preset-content">
+          <div class="preset-name">Haiku Poetry</div>
+          <div class="preset-desc">AI & consciousness</div>
+        </div>
+      </div>
+      <div class="preset-item" onclick="usePreset('Give me 10 startup ideas in the AI space that solve real problems')">
+        <span class="preset-icon">💡</span>
+        <div class="preset-content">
+          <div class="preset-name">Startup Ideas</div>
+          <div class="preset-desc">AI business concepts</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="server-status">
+        <div style="display:flex;align-items:center">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Connected</span>
+        </div>
+        <span style="font-size:10px;color:var(--text-muted)" id="pingTime">—</span>
+      </div>
+      <div class="server-url" id="serverUrlDisplay">http://46.202.166.56:8080</div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main" style="position:relative">
+    <!-- Stream progress -->
+    <div class="stream-progress" id="streamProgress">
+      <div class="stream-progress-bar" id="streamProgressBar"></div>
+    </div>
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">New Conversation</span>
+        <div class="topbar-model-chip">
+          <span>⚡</span>
+          <span id="topbarModel">minimax-m2.7:cloud</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" onclick="clearMessages()" title="Clear conversation">🗑</button>
+        <button class="icon-btn" onclick="toggleSettings()" title="Settings">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-container" id="messagesContainer">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">⚡</div>
+        <div class="empty-title">Ready to generate</div>
+        <div class="empty-sub">Connected to your local Ollama instance. Start typing or pick a quick prompt below.</div>
+        <div class="quick-chips">
+          <div class="chip" onclick="usePreset('Tell me a joke')">Tell me a joke</div>
+          <div class="chip" onclick="usePreset('Explain RAG in AI')">Explain RAG in AI</div>
+          <div class="chip" onclick="usePreset('Write a regex for email validation')">Email regex</div>
+          <div class="chip" onclick="usePreset('What is the meaning of life?')">Meaning of life</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="input-wrapper" id="inputWrapper">
+        <textarea
+          class="textarea-field"
+          id="promptInput"
+          placeholder="Send a message to your model..."
+          rows="1"
+        ></textarea>
+        <div class="input-toolbar">
+          <div class="input-tools">
+            <button class="tool-btn" title="Clear input" onclick="clearInput()">✕</button>
+            <span class="char-count" id="charCount">0</span>
+          </div>
+          <div class="input-actions">
+            <button class="stop-btn" id="stopBtn" onclick="stopStream()">⏹ Stop</button>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+              <span>Send</span>
+              <span>↑</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="input-hint"><kbd>Enter</kbd> to send &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> for newline</div>
+    </div>
+
+    <!-- Settings panel -->
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-title">
+        Settings
+        <button class="close-btn" onclick="toggleSettings()">✕</button>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">Server URL</label>
+        <input type="text" class="setting-input" id="serverUrl" value="http://46.202.166.56:8080" oninput="updateServerUrl()">
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">Temperature</label>
+        <div class="range-wrapper">
+          <input type="range" id="tempRange" min="0" max="2" step="0.1" value="0.8" oninput="document.getElementById('tempVal').textContent=this.value">
+          <span class="range-value" id="tempVal">0.8</span>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">Max Tokens</label>
+        <div class="range-wrapper">
+          <input type="range" id="maxTokensRange" min="64" max="4096" step="64" value="1024" oninput="document.getElementById('maxTokensVal').textContent=this.value">
+          <span class="range-value" id="maxTokensVal">1024</span>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">Context Window</label>
+        <div class="range-wrapper">
+          <input type="range" id="ctxRange" min="512" max="8192" step="256" value="2048" oninput="document.getElementById('ctxVal').textContent=this.value">
+          <span class="range-value" id="ctxVal">2048</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span id="toastIcon">ℹ️</span>
+  <span id="toastMsg">Message</span>
+</div>
+
+<script>
+  // ── State ──
+  let isStreaming = false;
+  let abortController = null;
+  let tokenCount = 0;
+  let startTime = null;
+
+  // ── DOM refs ──
+  const promptInput = document.getElementById('promptInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const messagesContainer = document.getElementById('messagesContainer');
+  const emptyState = document.getElementById('emptyState');
+  const modelSelect = document.getElementById('modelSelect');
+  const topbarModel = document.getElementById('topbarModel');
+  const charCount = document.getElementById('charCount');
+  const streamProgress = document.getElementById('streamProgress');
+  const streamProgressBar = document.getElementById('streamProgressBar');
+
+  // ── Textarea auto-resize ──
+  promptInput.addEventListener('input', () => {
+    promptInput.style.height = 'auto';
+    promptInput.style.height = Math.min(promptInput.scrollHeight, 160) + 'px';
+    const len = promptInput.value.length;
+    charCount.textContent = len;
+    charCount.className = 'char-count' + (len > 3000 ? ' warning' : '');
+  });
+
+  // ── Keyboard shortcuts ──
+  promptInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ── Model sync ──
+  modelSelect.addEventListener('change', () => {
+    topbarModel.textContent = modelSelect.value;
+  });
+
+  // ── Helpers ──
+  function getTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(text));
+    return d.innerHTML;
+  }
+
+  function formatResponse(text) {
+    // Basic markdown-like formatting
+    let html = escapeHtml(text);
+    // Code blocks
+    html = html.replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Newlines
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
+  function addMessage(role, content, isStreaming = false) {
+    // Hide empty state
+    if (emptyState.parentElement) emptyState.style.display = 'none';
+
+    const msg = document.createElement('div');
+    msg.className = `message ${role}`;
+
+    const avatarHtml = role === 'user'
+      ? `<div class="avatar user-avatar">You</div>`
+      : `<div class="avatar ai-avatar">⚡</div>`;
+
+    const nameLabel = role === 'user' ? 'You' : modelSelect.value.split(':')[0];
+
+    msg.innerHTML = `
+      ${avatarHtml}
+      <div class="message-content">
+        <div class="message-meta">
+          <span class="message-name">${nameLabel}</span>
+          <span class="message-time">${getTime()}</span>
+        </div>
+        <div class="bubble ${role}${isStreaming ? ' streaming' : ''}">
+          ${role === 'ai' && isStreaming ? '<span class="cursor"></span>' : formatResponse(content)}
+        </div>
+        ${role === 'ai' ? `<div class="token-count" id="tokenInfo-${Date.now()}">Generating...</div>` : ''}
+      </div>
+    `;
+
+    messagesContainer.appendChild(msg);
+    scrollToBottom();
+    return msg;
+  }
+
+  function addThinking() {
+    if (emptyState.parentElement) emptyState.style.display = 'none';
+
+    const thinking = document.createElement('div');
+    thinking.className = 'message ai';
+    thinking.id = 'thinkingIndicator';
+    thinking.innerHTML = `
+      <div class="avatar ai-avatar">⚡</div>
+      <div class="message-content">
+        <div class="message-meta">
+          <span class="message-name">${modelSelect.value.split(':')[0]}</span>
+          <span class="message-time">${getTime()}</span>
+        </div>
+        <div class="thinking">
+          <div class="thinking-ring"></div>
+          <div class="thinking-dots">
+            <div class="thinking-dot"></div>
+            <div class="thinking-dot"></div>
+            <div class="thinking-dot"></div>
+          </div>
+          <span class="thinking-label">Generating response...</span>
+        </div>
+      </div>
+    `;
+    messagesContainer.appendChild(thinking);
+    scrollToBottom();
+    return thinking;
+  }
+
+  function scrollToBottom() {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  function showToast(msg, type = 'info') {
+    const toast = document.getElementById('toast');
+    const icons = { info: 'ℹ️', error: '❌', success: '✅' };
+    document.getElementById('toastIcon').textContent = icons[type];
+    document.getElementById('toastMsg').textContent = msg;
+    toast.className = `toast show ${type}`;
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => toast.className = 'toast', 3500);
+  }
+
+  function setStreaming(active) {
+    isStreaming = active;
+    sendBtn.disabled = active;
+    stopBtn.classList.toggle('visible', active);
+    streamProgress.classList.toggle('active', active);
+    if (!active) streamProgressBar.style.width = '100%';
+  }
+
+  // ── Main send ──
+  async function sendMessage() {
+    const prompt = promptInput.value.trim();
+    if (!prompt || isStreaming) return;
+
+    const serverUrl = document.getElementById('serverUrl').value.trim();
+    const model = modelSelect.value;
+
+    // Clear input
+    promptInput.value = '';
+    promptInput.style.height = 'auto';
+    charCount.textContent = '0';
+
+    // Add user message
+    addMessage('user', prompt);
+
+    // Start streaming state
+    setStreaming(true);
+    tokenCount = 0;
+    startTime = Date.now();
+
+    // Show thinking indicator
+    const thinkingEl = addThinking();
+
+    let aiMsg = null;
+    let aiTokenInfoEl = null;
+    let responseText = '';
+
+    try {
+      abortController = new AbortController();
+
+      const res = await fetch(`${serverUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt,
+          stream: true,
+          options: {
+            temperature: parseFloat(document.getElementById('tempRange').value),
+            num_predict: parseInt(document.getElementById('maxTokensRange').value),
+            num_ctx: parseInt(document.getElementById('ctxRange').value),
+          }
+        }),
+        signal: abortController.signal
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+
+      // Remove thinking, add AI bubble
+      thinkingEl.remove();
+      aiMsg = addMessage('ai', '', true);
+      const bubble = aiMsg.querySelector('.bubble');
+      aiTokenInfoEl = aiMsg.querySelector('[id^="tokenInfo-"]');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(l => l.trim());
+
+        for (const line of lines) {
+          try {
+            const json = JSON.parse(line);
+            if (json.response) {
+              responseText += json.response;
+              tokenCount++;
+              // Update bubble with formatted text + cursor
+              bubble.innerHTML = formatResponse(responseText) + '<span class="cursor"></span>';
+              scrollToBottom();
+            }
+            if (json.done) {
+              bubble.innerHTML = formatResponse(responseText);
+              bubble.classList.remove('streaming');
+              const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+              const tps = (tokenCount / elapsed).toFixed(1);
+              if (aiTokenInfoEl) {
+                aiTokenInfoEl.innerHTML = `<span>${tokenCount}</span> tokens &nbsp;·&nbsp; <span>${elapsed}s</span> &nbsp;·&nbsp; <span>${tps}</span> tok/s`;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+    } catch (err) {
+      thinkingEl.remove();
+      if (err.name === 'AbortError') {
+        if (aiMsg) {
+          const bubble = aiMsg.querySelector('.bubble');
+          bubble.innerHTML = formatResponse(responseText) + '<br><span style="color:var(--accent-amber);font-size:11px">⚠ Generation stopped by user</span>';
+          bubble.classList.remove('streaming');
+        }
+      } else {
+        showToast(`Connection error: ${err.message}`, 'error');
+        updateConnectionStatus(false);
+        if (!aiMsg) {
+          const errMsg = document.createElement('div');
+          errMsg.className = 'message ai';
+          errMsg.style.animation = 'fadeUp 0.3s ease forwards';
+          errMsg.innerHTML = `
+            <div class="avatar ai-avatar">⚡</div>
+            <div class="message-content">
+              <div class="message-meta"><span class="message-name">System</span></div>
+              <div class="bubble ai" style="border-color:var(--accent-rose);color:var(--accent-rose)">
+                ❌ Failed to connect to Ollama server.<br>
+                <span style="color:var(--text-secondary);font-size:12px">Check that your server is running at <code>${serverUrl}</code></span>
+              </div>
+            </div>
+          `;
+          messagesContainer.appendChild(errMsg);
+          scrollToBottom();
+        }
+      }
+    } finally {
+      setStreaming(false);
+      abortController = null;
+      streamProgressBar.style.width = '0%';
+      promptInput.focus();
+    }
+  }
+
+  function stopStream() {
+    if (abortController) abortController.abort();
+  }
+
+  function clearInput() {
+    promptInput.value = '';
+    promptInput.style.height = 'auto';
+    charCount.textContent = '0';
+    promptInput.focus();
+  }
+
+  function clearMessages() {
+    const msgs = messagesContainer.querySelectorAll('.message');
+    msgs.forEach(m => m.remove());
+    emptyState.style.display = '';
+    showToast('Conversation cleared', 'info');
+  }
+
+  function usePreset(text) {
+    promptInput.value = text;
+    promptInput.style.height = 'auto';
+    promptInput.style.height = Math.min(promptInput.scrollHeight, 160) + 'px';
+    charCount.textContent = text.length;
+    promptInput.focus();
+  }
+
+  function toggleSettings() {
+    document.getElementById('settingsPanel').classList.toggle('open');
+  }
+
+  function updateServerUrl() {
+    const url = document.getElementById('serverUrl').value;
+    document.getElementById('serverUrlDisplay').textContent = url;
+  }
+
+  function updateConnectionStatus(online) {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    dot.className = 'status-dot' + (online ? '' : ' error');
+    text.textContent = online ? 'Connected' : 'Offline';
+  }
+
+  // ── Ping server on load ──
+  async function pingServer() {
+    const url = document.getElementById('serverUrl').value;
+    const t = Date.now();
+    try {
+      await fetch(`${url}/api/tags`, { method: 'GET', signal: AbortSignal.timeout(3000) });
+      const ms = Date.now() - t;
+      document.getElementById('pingTime').textContent = `${ms}ms`;
+      updateConnectionStatus(true);
+    } catch {
+      updateConnectionStatus(false);
+      document.getElementById('pingTime').textContent = '—';
+    }
+  }
+
+  // ── Init ──
+  pingServer();
+  promptInput.focus();
+</script>
+</body>
+</html>
